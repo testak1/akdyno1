@@ -10,6 +10,7 @@ from fpdf import FPDF
 import os
 import datetime
 import tempfile
+import requests
 
 st.set_page_config(page_title="AK-TUNING DYNO", layout="centered")
 st.title("AK-TUNING DYNO - Webapp")
