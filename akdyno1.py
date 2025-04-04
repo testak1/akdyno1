@@ -44,7 +44,7 @@ def extract_tuning_info(url):
         st.toast("Hämtar data...", icon="⚙️")
 
         try:
-            driver.execute_script("document.querySelector('a[href=\\"#stage-1\\"]').click();")
+            driver.execute_script('document.querySelector("a[href=\'#stage-1\']").click();')
         except:
             pass
 
