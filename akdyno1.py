@@ -19,15 +19,23 @@ st.title("AK-TUNING DYNO - Webapp")
 user_custom_values = None
 
 # -- Funktioner --
+import requests
+
 def extract_tuning_info(url):
     try:
-        response = requests.get(url)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
+
+        # Klicka på Stage 1-tabben manuellt fungerar inte utan JS
+        # Men vi kan fortfarande hitta Stage 1-data direkt i DOM
 
         breadcrumb = soup.find("span", {"id": "breadcrumb"})
         car_name = breadcrumb.get_text(strip=True).replace(" ->", "") if breadcrumb else "DYNO"
 
-        # Klick behövs inte – datan finns direkt i div#stage-1
         stage1_tab = soup.find("div", {"id": "stage-1"})
         if not stage1_tab:
             return None, car_name
@@ -37,13 +45,13 @@ def extract_tuning_info(url):
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 2:
-                val = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
-                if val.isdigit():
-                    num = int(val)
+                val_text = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
+                if val_text.isdigit():
+                    val = int(val_text)
                     if "HK" in cols[1].text.upper():
-                        hk_values.append(num)
+                        hk_values.append(val)
                     elif "NM" in cols[1].text.upper():
-                        nm_values.append(num)
+                        nm_values.append(val)
 
         if len(hk_values) >= 3 and len(nm_values) >= 3:
             return {
@@ -56,7 +64,6 @@ def extract_tuning_info(url):
     except Exception as e:
         st.error(f"Kunde inte hämta data: {e}")
         return None, "DYNO"
-
 def plot_dyno(data, is_diesel=True):
     tuned = user_custom_values if user_custom_values else data["Tuned"]
     rpm = np.array([1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]) if is_diesel else \
