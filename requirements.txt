@@ -2,7 +2,6 @@ streamlit
 matplotlib
 numpy
 scipy
-selenium
-beautifulsoup4
 fpdf
-chromedriver_autoinstaller
+beautifulsoup4
+requests
