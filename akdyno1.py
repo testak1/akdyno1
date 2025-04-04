@@ -21,26 +21,28 @@ user_custom_values = None
 def extract_tuning_info(url):
     try:
         response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
 
         breadcrumb = soup.find("span", {"id": "breadcrumb"})
         car_name = breadcrumb.get_text(strip=True).replace(" ->", "") if breadcrumb else "DYNO"
 
-        # Simulera klick på "Stage 1"
-        stage1_tab = soup.find("div", {"id": "stage-1"}) or soup
+        # Klick behövs inte – datan finns direkt i div#stage-1
+        stage1_tab = soup.find("div", {"id": "stage-1"})
+        if not stage1_tab:
+            return None, car_name
+
         rows = stage1_tab.find_all("tr")
         hk_values, nm_values = [], []
-
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 2:
-                val_text = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
-                if val_text.isdigit():
-                    val = int(val_text)
+                val = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
+                if val.isdigit():
+                    num = int(val)
                     if "HK" in cols[1].text.upper():
-                        hk_values.append(val)
+                        hk_values.append(num)
                     elif "NM" in cols[1].text.upper():
-                        nm_values.append(val)
+                        nm_values.append(num)
 
         if len(hk_values) >= 3 and len(nm_values) >= 3:
             return {
