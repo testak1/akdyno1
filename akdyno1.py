@@ -1,4 +1,4 @@
-# app.py - AK-TUNING DYNO Webapp i Streamlit
+# streamlit_app.py - AK-TUNING DYNO Webapp för Streamlit Cloud
 
 import streamlit as st
 import os
@@ -7,22 +7,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import make_interp_spline
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
-import time
 from fpdf import FPDF
 import chromedriver_autoinstaller
 import tempfile
+import time
 
 # --- Globala variabler ---
 user_custom_values = None
 
 # --- Hjälpmetoder ---
 def get_garantibevis_folder():
-    folder = os.path.join(os.path.expanduser("~"), "Desktop", "Garantibevis")
+    folder = os.path.join(os.getcwd(), "Garantibevis")
     os.makedirs(folder, exist_ok=True)
     return folder
 
@@ -34,33 +32,23 @@ def log_pdf_creation(regnr, filepath):
 def extract_tuning_info(url):
     try:
         chromedriver_autoinstaller.install()
-        options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        service = Service("chromedriver.exe")
-        driver = webdriver.Chrome(service=service, options=options)
 
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
         driver.get(url)
+        st.toast("Hämtar data...", icon="⚙️")
 
-        # Vänta på att breadcrumb ska ladda (som en indikation på att hela sidan är laddad)
         try:
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.ID, "breadcrumb"))
-            )
+            driver.execute_script("document.querySelector('a[href=\\"#stage-1\\"]').click();")
         except:
-            st.warning("Timeout – sidan laddades inte klart.")
-            driver.quit()
-            return None, "DYNO"
+            pass
 
-        # Försök klicka på Stage 1-tab om den finns
-        try:
-            stage_link = driver.find_element(By.CSS_SELECTOR, 'a[href="#stage-1"]')
-            driver.execute_script("arguments[0].click();", stage_link)
-        except:
-            st.info("Ingen Stage 1-flik hittades – försöker ändå läsa data.")
-
-        time.sleep(1.5)  # liten paus för att innehåll ska hinna uppdateras
+        time.sleep(2)
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         driver.quit()
 
@@ -83,7 +71,6 @@ def extract_tuning_info(url):
                         hk_values.append(val)
                     elif "NM" in cols[1].text.upper():
                         nm_values.append(val)
-
         if len(hk_values) >= 3 and len(nm_values) >= 3:
             return {
                 "Original": {"hk": hk_values[0], "Nm": nm_values[0]},
@@ -92,7 +79,6 @@ def extract_tuning_info(url):
             }, car_name
         else:
             return None, car_name
-
     except Exception as e:
         st.error(f"Kunde inte hämta data: {e}")
         return None, "DYNO"
@@ -174,9 +160,7 @@ if "tuningdata" in st.session_state:
         nm = st.number_input("Egen Tuned NM", value=0)
     tillval = st.multiselect("Tillval", ["VMAX OFF", "DPF OFF", "EGR OFF", "ADBLUE OFF", "DECAT", "OPF OFF", "POPS&BANGS"])
     extra = st.text_input("Extra (DTC/Felkod mm)")
-if st.button("Skapa PDF"):
-    if hk > 0 and nm > 0:
-        user_custom_values = {"hk": hk, "Nm": nm}
-    else:
-        user_custom_values = None
-    save_pdf(st.session_state["car_name"], regnr, miltal, tillval, extra, st.session_state["tuningdata"], st.session_state["dyno_fig"])
+    if st.button("Skapa PDF"):
+        if hk > 0 and nm > 0:
+            user_custom_values = {"hk": hk, "Nm": nm}
+        save_pdf(st.session_state["car_name"], regnr, miltal, tillval, extra, st.session_state["tuningdata"], st.session_state["dyno_fig"])
