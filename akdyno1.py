@@ -1,4 +1,4 @@
-# app.py - Streamlit-version av AK-TUNING DYNO utan Selenium (Streamlit Cloud-kompatibel)
+# AK-TUNING DYNO - Streamlit-version (med direkt Stage 1-länk, utan Selenium)
 
 import streamlit as st
 import requests
@@ -10,28 +10,19 @@ from fpdf import FPDF
 import os
 import datetime
 import tempfile
-import requests
 
 st.set_page_config(page_title="AK-TUNING DYNO", layout="centered")
 st.title("AK-TUNING DYNO - Webapp")
 
-# Global variabel
 user_custom_values = None
 
-# -- Funktioner --
-import requests
-
+# --- Funktioner ---
 def extract_tuning_info(url):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # Klicka på Stage 1-tabben manuellt fungerar inte utan JS
-        # Men vi kan fortfarande hitta Stage 1-data direkt i DOM
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
 
         breadcrumb = soup.find("span", {"id": "breadcrumb"})
         car_name = breadcrumb.get_text(strip=True).replace(" ->", "") if breadcrumb else "DYNO"
@@ -45,13 +36,13 @@ def extract_tuning_info(url):
         for row in rows:
             cols = row.find_all("td")
             if len(cols) >= 2:
-                val_text = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
-                if val_text.isdigit():
-                    val = int(val_text)
+                val = cols[1].text.strip().replace("hk", "").replace("Nm", "").replace("+", "").strip()
+                if val.isdigit():
+                    num = int(val)
                     if "HK" in cols[1].text.upper():
-                        hk_values.append(val)
+                        hk_values.append(num)
                     elif "NM" in cols[1].text.upper():
-                        nm_values.append(val)
+                        nm_values.append(num)
 
         if len(hk_values) >= 3 and len(nm_values) >= 3:
             return {
@@ -64,6 +55,7 @@ def extract_tuning_info(url):
     except Exception as e:
         st.error(f"Kunde inte hämta data: {e}")
         return None, "DYNO"
+
 def plot_dyno(data, is_diesel=True):
     tuned = user_custom_values if user_custom_values else data["Tuned"]
     rpm = np.array([1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]) if is_diesel else \
@@ -115,7 +107,7 @@ def save_pdf(car_name, regnr, miltal, tillval, extra, data, fig):
     st.success(f"PDF sparades i: {filepath}")
 
 # --- UI ---
-url = st.text_input("Klistra in AK Performance URL")
+url = st.text_input("Klistra in fullständig Stage 1-länk (inkl. stageId=...)")
 engine = st.radio("Motortyp", ["Diesel", "Bensin"])
 is_diesel = engine == "Diesel"
 
